@@ -23,3 +23,7 @@ Route::post('/login/user', [AuthController::class, 'LoginUser'])->name('LoginUse
 Route::get('/home',[AuthController::class, 'loadHomePage']);
 
 Route::get('/logout',[AuthController::class, 'LogoutUser']);
+
+Route::get('/forgot/password',[AuthController::class, 'forgotPassword']);
+
+Route::post('/forgot',[AuthController::class, 'forgot'])->name('forgot');
