@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Session;
 
 class AuthController extends Controller
@@ -81,39 +82,105 @@ class AuthController extends Controller
     }
 
     // perform email sending logic 
-    public function forgot(Request $request){
-        $user = User::where('email', $request->email)->get();
+    // public function forgot(Request $request){
+    //     $user = User::where('email', $request->email)->get();
 
-        foreach($user as $value){
-            $user = $value;
+    //     foreach($user as $value){
+    //         $user = $value;
         
-        }
+    //     }
         
-        if(count($user) > 0){
+    //     if(count($user) > 0){
+    //         $token = Str::random(40);
+    //         $domain = URL::to('/');
+    //         $url = $domain.'/reset/password?token='.$token;
+
+    //         $data['url'] = $url;
+    //         $data['email'] = $request->email;
+    //         $data['title'] = 'Password Reset';
+    //         $data['body'] = 'Please click the link below to reset your password';
+
+    //         Mail::send('forgotPasswordMail', ['data' => $data], function($message) use ($data){
+    //             $message->to($data['email'])->subject($data['title']);
+    //         });
+    //         $dataTime = Carbon::now()->format('Y-m-d H:i:s');
+            
+    //         $passwordReset = new PasswordReset;
+    //         $passwordReset->email = $request->email;
+    //         $passwordReset->token = $token;
+    //         $passwordReset->user_id = $value->id;
+    //         // $passwordReset->created_at = $dataTime;
+    //         $passwordReset->save();
+
+    //         return back()->with('success', 'Password reset link sent to your email');
+    //     } else {
+    //         return redirect('/forgot/password')->with('error', 'Email does not exist');
+    //     }
+    // }
+    
+    public function forgot(Request $request) {
+        $request->validate([
+            'email' => 'required'
+        ]);
+        
+        $user = User::where('email', $request->email)->first(); // Ambil satu user
+    
+        if ($user) { // Cukup cek keberadaan user tanpa count()
             $token = Str::random(40);
             $domain = URL::to('/');
-            $url = $domain.'/reset/password?token='.$token;
-
+            $url = $domain . '/reset/password?token=' . $token;
+    
             $data['url'] = $url;
             $data['email'] = $request->email;
             $data['title'] = 'Password Reset';
             $data['body'] = 'Please click the link below to reset your password';
-
-            Mail::send('forgotPasswordMail', ['data' => $data], function($message) use ($data){
+    
+            Mail::send('forgotPasswordMail', ['data' => $data], function ($message) use ($data) {
                 $message->to($data['email'])->subject($data['title']);
             });
-            $dataTime = Carbon::now()->format('Y-m-d H:i:s');
-            
+    
             $passwordReset = new PasswordReset;
             $passwordReset->email = $request->email;
             $passwordReset->token = $token;
-            $passwordReset->user_id = $value->id;
-            // $passwordReset->created_at = $dataTime;
+            $passwordReset->user_id = $user->id;
             $passwordReset->save();
-
+    
             return back()->with('success', 'Password reset link sent to your email');
         } else {
             return redirect('/forgot/password')->with('error', 'Email does not exist');
         }
     }
+
+    public function loadResetPassword(Request $request){
+        $resetData = PasswordReset::where('token', $request->token)->get();
+        if(isset($request->token) && count($resetData) > 0){
+            $user = User::where('id', $resetData[0]->user_id)->get();
+            foreach($user as $user_data){
+                
+            }
+            return view('reset-password', compact('user_data'));
+        } else {
+            return view('404');
+        }
+    }
+
+    // perform password reset logic
+
+    public function ResetPassword(Request $request){
+        $request->validate([
+            'password' => 'required|min:6|max:8|confirmed'
+        ]);
+        try {
+            $user = User::find($request->user_id);
+            $user->password = Hash::make($request->password);
+            $user->save();
+
+            // dlete reset token
+            PasswordReset::where('email', $request->user_email)->delete();
+            return redirect('/login/form')->with('success', 'Password reset successfully'); 
+        } catch (\Exception $e) {
+            return back()->with('error', $e -> getMessage());
+        }
+    }
+    
 }
